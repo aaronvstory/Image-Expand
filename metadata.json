@@ -1,0 +1,5 @@
+{
+  "name": "Gemini Image Expander",
+  "description": "An application to expand images using generative AI without altering the original content. Users can upload an image, define a new canvas size, and let Gemini's 'gemini-2.5-flash-image-preview' model fill in the surrounding areas.",
+  "requestFramePermissions": []
+}
