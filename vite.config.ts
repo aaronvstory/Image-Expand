@@ -4,11 +4,13 @@ import { defineConfig, loadEnv } from 'vite';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     const isDev = mode === 'development';
-    
+
     return {
+      // GitHub Pages deployment base path
+      base: mode === 'production' ? '/Image-Expand/' : '/',
       define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+        'process.env.VITE_GEMINI_API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY),
+        'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY)
       },
       resolve: {
         alias: {
@@ -30,6 +32,9 @@ export default defineConfig(({ mode }) => {
         // Show detailed build information
         reportCompressedSize: true,
         chunkSizeWarningLimit: 1000,
+        // GitHub Pages compatibility
+        outDir: 'dist',
+        sourcemap: false,
       }
     };
 });

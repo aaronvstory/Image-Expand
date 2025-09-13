@@ -6,8 +6,9 @@ import { createExpandedCanvas } from '../utils/imageUtils';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Slider } from './ui/Slider';
-import { ChevronLeftIcon, LoaderIcon, WandIcon } from './ui/Icons';
+import { ChevronLeftIcon, LoaderIcon, WandIcon, XIcon, LayersIcon } from './ui/Icons';
 import GeneratedImageHistory from './GeneratedImageHistory';
+import ImageComposer from './ImageComposer';
 import { useAppContext } from '../App';
 
 interface ImageEditorProps {
@@ -26,6 +27,8 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ originalImage, onReset }) => 
   const [error, setError] = useState<string | null>(null);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [isHistoryVisible, setIsHistoryVisible] = useState(false);
+  const [showComposer, setShowComposer] = useState(false);
+  const [currentCanvasImage, setCurrentCanvasImage] = useState<string | null>(null);
 
   useEffect(() => {
     setWidth(originalImage.width);
@@ -77,6 +80,11 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ originalImage, onReset }) => 
       
       setGeneratedImages(prev => [...newImages, ...prev]);
       setIsHistoryVisible(true);
+      
+      // Store the canvas for potential compositing
+      if (newImages.length > 0) {
+        setCurrentCanvasImage(newImages[0].src);
+      }
     // Fix: Added curly braces to the catch block to fix a syntax error.
     } catch (e: any) {
       console.error(e);
@@ -86,53 +94,192 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ originalImage, onReset }) => 
     }
   }, [originalImage, width, height, prompt, apiKey]);
 
-  const setAspectRatio = useCallback((ratio: 'landscape' | 'portrait' | 'square' | 'auto') => {
+  const setAspectRatio = useCallback((ratio: 'landscape-16-9' | 'landscape-4-3' | 'portrait-9-16' | 'portrait-3-4' | 'square' | 
+    'landscape-16-9-50' | 'landscape-4-3-50' | 'portrait-9-16-50' | 'portrait-3-4-50' | 'square-50' |
+    'landscape-16-9-100' | 'landscape-4-3-100' | 'portrait-9-16-100' | 'portrait-3-4-100' | 'square-100') => {
     const originalW = originalImage.width;
     const originalH = originalImage.height;
     let newW = originalW;
     let newH = originalH;
 
     switch (ratio) {
-      case 'landscape': {
+      // Landscape ratios
+      case 'landscape-16-9': {
         const targetAspectRatio = 16 / 9;
-        // Expand the canvas to fit the target aspect ratio while containing the original image
-        // Always ensure the new dimensions are at least as large as the original
         if (originalW / originalH < targetAspectRatio) {
-          // Image is taller or less wide than 16:9, so expand width
           newW = Math.max(Math.round(originalH * targetAspectRatio), originalW);
           newH = Math.max(originalH, newH);
         } else {
-          // Image is wider or has the same aspect ratio as 16:9, so expand height
           newH = Math.max(Math.round(originalW / targetAspectRatio), originalH);
           newW = Math.max(originalW, newW);
         }
         break;
       }
-      case 'portrait': {
+      case 'landscape-4-3': {
+        const targetAspectRatio = 4 / 3;
+        if (originalW / originalH < targetAspectRatio) {
+          newW = Math.max(Math.round(originalH * targetAspectRatio), originalW);
+          newH = Math.max(originalH, newH);
+        } else {
+          newH = Math.max(Math.round(originalW / targetAspectRatio), originalH);
+          newW = Math.max(originalW, newW);
+        }
+        break;
+      }
+      
+      // Portrait ratios
+      case 'portrait-9-16': {
         const targetAspectRatio = 9 / 16;
-        // Expand the canvas to fit the target aspect ratio while containing the original image
-        // Always ensure the new dimensions are at least as large as the original
         if (originalW / originalH > targetAspectRatio) {
-          // Image is wider or less tall than 9:16, so expand height
           newH = Math.max(Math.round(originalW / targetAspectRatio), originalH);
           newW = Math.max(originalW, newW);
         } else {
-          // Image is taller or has the same aspect ratio as 9:16, so expand width
           newW = Math.max(Math.round(originalH * targetAspectRatio), originalW);
           newH = Math.max(originalH, newH);
         }
         break;
       }
+      case 'portrait-3-4': {
+        const targetAspectRatio = 3 / 4;
+        if (originalW / originalH > targetAspectRatio) {
+          newH = Math.max(Math.round(originalW / targetAspectRatio), originalH);
+          newW = Math.max(originalW, newW);
+        } else {
+          newW = Math.max(Math.round(originalH * targetAspectRatio), originalW);
+          newH = Math.max(originalH, newH);
+        }
+        break;
+      }
+      
+      // Square
       case 'square': {
-        // Make a square that contains the entire original image
         const side = Math.max(originalW, originalH);
         newW = side;
         newH = side;
         break;
       }
-      case 'auto': { // This is the "1:1 +30%" preset
-        // Expand both dimensions by 30% while maintaining square aspect
-        const side = Math.round(Math.max(originalW, originalH) * 1.3);
+      
+      // Landscape +50%
+      case 'landscape-16-9-50': {
+        const targetAspectRatio = 16 / 9;
+        if (originalW / originalH < targetAspectRatio) {
+          newW = Math.max(Math.round(originalH * targetAspectRatio), originalW);
+          newH = Math.max(originalH, newH);
+        } else {
+          newH = Math.max(Math.round(originalW / targetAspectRatio), originalH);
+          newW = Math.max(originalW, newW);
+        }
+        newW = Math.round(newW * 1.5);
+        newH = Math.round(newH * 1.5);
+        break;
+      }
+      case 'landscape-4-3-50': {
+        const targetAspectRatio = 4 / 3;
+        if (originalW / originalH < targetAspectRatio) {
+          newW = Math.max(Math.round(originalH * targetAspectRatio), originalW);
+          newH = Math.max(originalH, newH);
+        } else {
+          newH = Math.max(Math.round(originalW / targetAspectRatio), originalH);
+          newW = Math.max(originalW, newW);
+        }
+        newW = Math.round(newW * 1.5);
+        newH = Math.round(newH * 1.5);
+        break;
+      }
+      
+      // Portrait +50%
+      case 'portrait-9-16-50': {
+        const targetAspectRatio = 9 / 16;
+        if (originalW / originalH > targetAspectRatio) {
+          newH = Math.max(Math.round(originalW / targetAspectRatio), originalH);
+          newW = Math.max(originalW, newW);
+        } else {
+          newW = Math.max(Math.round(originalH * targetAspectRatio), originalW);
+          newH = Math.max(originalH, newH);
+        }
+        newW = Math.round(newW * 1.5);
+        newH = Math.round(newH * 1.5);
+        break;
+      }
+      case 'portrait-3-4-50': {
+        const targetAspectRatio = 3 / 4;
+        if (originalW / originalH > targetAspectRatio) {
+          newH = Math.max(Math.round(originalW / targetAspectRatio), originalH);
+          newW = Math.max(originalW, newW);
+        } else {
+          newW = Math.max(Math.round(originalH * targetAspectRatio), originalW);
+          newH = Math.max(originalH, newH);
+        }
+        newW = Math.round(newW * 1.5);
+        newH = Math.round(newH * 1.5);
+        break;
+      }
+      
+      // Landscape +100%
+      case 'landscape-16-9-100': {
+        const targetAspectRatio = 16 / 9;
+        if (originalW / originalH < targetAspectRatio) {
+          newW = Math.max(Math.round(originalH * targetAspectRatio), originalW);
+          newH = Math.max(originalH, newH);
+        } else {
+          newH = Math.max(Math.round(originalW / targetAspectRatio), originalH);
+          newW = Math.max(originalW, newW);
+        }
+        newW = Math.round(newW * 2);
+        newH = Math.round(newH * 2);
+        break;
+      }
+      case 'landscape-4-3-100': {
+        const targetAspectRatio = 4 / 3;
+        if (originalW / originalH < targetAspectRatio) {
+          newW = Math.max(Math.round(originalH * targetAspectRatio), originalW);
+          newH = Math.max(originalH, newH);
+        } else {
+          newH = Math.max(Math.round(originalW / targetAspectRatio), originalH);
+          newW = Math.max(originalW, newW);
+        }
+        newW = Math.round(newW * 2);
+        newH = Math.round(newH * 2);
+        break;
+      }
+      
+      // Portrait +100%
+      case 'portrait-9-16-100': {
+        const targetAspectRatio = 9 / 16;
+        if (originalW / originalH > targetAspectRatio) {
+          newH = Math.max(Math.round(originalW / targetAspectRatio), originalH);
+          newW = Math.max(originalW, newW);
+        } else {
+          newW = Math.max(Math.round(originalH * targetAspectRatio), originalW);
+          newH = Math.max(originalH, newH);
+        }
+        newW = Math.round(newW * 2);
+        newH = Math.round(newH * 2);
+        break;
+      }
+      case 'portrait-3-4-100': {
+        const targetAspectRatio = 3 / 4;
+        if (originalW / originalH > targetAspectRatio) {
+          newH = Math.max(Math.round(originalW / targetAspectRatio), originalH);
+          newW = Math.max(originalW, newW);
+        } else {
+          newW = Math.max(Math.round(originalH * targetAspectRatio), originalW);
+          newH = Math.max(originalH, newH);
+        }
+        newW = Math.round(newW * 2);
+        newH = Math.round(newH * 2);
+        break;
+      }
+      case 'square-50': {
+        // Make a square that contains the entire original image, then expand by 50%
+        const side = Math.round(Math.max(originalW, originalH) * 1.5);
+        newW = side;
+        newH = side;
+        break;
+      }
+      case 'square-100': {
+        // Make a square that contains the entire original image, then expand by 100%
+        const side = Math.round(Math.max(originalW, originalH) * 2);
         newW = side;
         newH = side;
         break;
@@ -151,11 +298,21 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ originalImage, onReset }) => 
     setHeight(newH);
   }, [originalImage.width, originalImage.height]);
 
+  const handleCompositeComplete = useCallback((compositeImage: string) => {
+    const newImage: GeneratedImage = {
+      id: crypto.randomUUID(),
+      src: compositeImage
+    };
+    setGeneratedImages(prev => [newImage, ...prev]);
+    setShowComposer(false);
+    setCurrentCanvasImage(null);
+  }, []);
 
-  // Calculate scale to fit the canvas in the viewport
+
+  // Calculate scale to fit the canvas in the viewport with proper padding
   const canvasScale = Math.min(
-    (window.innerWidth * 0.7) / width,
-    (window.innerHeight * 0.6) / height,
+    (window.innerWidth * 0.65) / width,
+    (window.innerHeight * 0.5) / height,
     1
   );
 
@@ -164,17 +321,31 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ originalImage, onReset }) => 
   const imageToCanvasScaleY = originalImage.height / height;
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center relative">
-        <Button variant="ghost" className="absolute top-16 sm:top-4 left-4 z-20" onClick={onReset}>
-            <ChevronLeftIcon className="h-4 w-4 mr-2" />
-            Back
-        </Button>
+    <div className="w-full h-full flex flex-col">
+        {/* Top action bar */}
+        <div className="flex justify-between items-center px-4 py-3 border-b border-border bg-background/50">
+            <Button variant="ghost" onClick={onReset}>
+                <ChevronLeftIcon className="h-4 w-4 mr-2" />
+                Back
+            </Button>
+            <Button 
+                variant="ghost" 
+                onClick={onReset}
+                title="Remove image and upload a new one"
+                className="hover:bg-destructive/10 hover:text-destructive"
+            >
+                <XIcon className="h-4 w-4 mr-2" />
+                Remove Image
+            </Button>
+        </div>
+        
+        {/* Canvas area - takes remaining space but doesn't overflow */}
         <div 
-            className="flex-grow flex items-center justify-center w-full p-4 overflow-hidden relative"
+            className="flex-1 flex items-center justify-center w-full p-4 overflow-hidden relative min-h-0"
             style={{ touchAction: 'none' }}
         >
             <div
-              className="relative transition-all duration-200 bg-secondary/20"
+              className="relative transition-all duration-200 bg-secondary/20 shadow-lg rounded-lg"
               style={{
                   width: width * canvasScale,
                   height: height * canvasScale,
@@ -218,9 +389,10 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ originalImage, onReset }) => 
             </div>
         </div>
         
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 z-20">
-            {error && <p className="text-destructive text-center mb-2">{error}</p>}
-            <div className="bg-secondary/80 backdrop-blur-sm border border-border rounded-xl p-4 shadow-2xl">
+        {/* Controls area - fixed at bottom, not overlapping */}
+        <div className="relative px-6 py-4 border-t border-border bg-background/95 backdrop-blur-sm">
+            {error && <p className="text-destructive text-center mb-3 max-w-4xl mx-auto">{error}</p>}
+            <div className="max-w-7xl mx-auto space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                     <div className="flex flex-col gap-4">
                         <div className="flex items-center gap-2">
@@ -262,13 +434,63 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ originalImage, onReset }) => 
                             />
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={() => setAspectRatio('landscape')}>Landscape</Button>
-                        <Button variant="outline" onClick={() => setAspectRatio('portrait')}>Portrait</Button>
-                        <Button variant="outline" onClick={() => setAspectRatio('square')}>1:1</Button>
-                        <Button variant="outline" onClick={() => setAspectRatio('auto')}>1:1 +30%</Button>
+                    <div className="flex flex-col gap-3">
+                        {/* Landscape Ratios */}
+                        <div className="space-y-2">
+                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Landscape</h4>
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                                <div className="text-center text-muted-foreground">Base</div>
+                                <div className="text-center text-muted-foreground">+50%</div>
+                                <div className="text-center text-muted-foreground">+100%</div>
+                                
+                                <Button variant="outline" size="sm" onClick={() => setAspectRatio('landscape-16-9')}>16:9</Button>
+                                <Button variant="outline" size="sm" onClick={() => setAspectRatio('landscape-16-9-50')}>16:9</Button>
+                                <Button variant="outline" size="sm" onClick={() => setAspectRatio('landscape-16-9-100')}>16:9</Button>
+                                
+                                <Button variant="outline" size="sm" onClick={() => setAspectRatio('landscape-4-3')}>4:3</Button>
+                                <Button variant="outline" size="sm" onClick={() => setAspectRatio('landscape-4-3-50')}>4:3</Button>
+                                <Button variant="outline" size="sm" onClick={() => setAspectRatio('landscape-4-3-100')}>4:3</Button>
+                            </div>
+                        </div>
+                        
+                        {/* Portrait Ratios */}
+                        <div className="space-y-2">
+                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Portrait</h4>
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                                <Button variant="outline" size="sm" onClick={() => setAspectRatio('portrait-9-16')}>9:16</Button>
+                                <Button variant="outline" size="sm" onClick={() => setAspectRatio('portrait-9-16-50')}>9:16</Button>
+                                <Button variant="outline" size="sm" onClick={() => setAspectRatio('portrait-9-16-100')}>9:16</Button>
+                                
+                                <Button variant="outline" size="sm" onClick={() => setAspectRatio('portrait-3-4')}>3:4</Button>
+                                <Button variant="outline" size="sm" onClick={() => setAspectRatio('portrait-3-4-50')}>3:4</Button>
+                                <Button variant="outline" size="sm" onClick={() => setAspectRatio('portrait-3-4-100')}>3:4</Button>
+                            </div>
+                        </div>
+                        
+                        {/* Square */}
+                        <div className="space-y-2">
+                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Square</h4>
+                            <div className="grid grid-cols-3 gap-2">
+                                <Button variant="outline" size="sm" onClick={() => setAspectRatio('square')}>1:1</Button>
+                                <Button variant="outline" size="sm" onClick={() => setAspectRatio('square-50')}>1:1 +50%</Button>
+                                <Button variant="outline" size="sm" onClick={() => setAspectRatio('square-100')}>1:1 +100%</Button>
+                            </div>
+                        </div>
                     </div>
                 </div>
+                
+                {/* Composer Section */}
+                {showComposer && currentCanvasImage && (
+                  <div className="mt-4 p-4 border border-border rounded-lg">
+                    <ImageComposer
+                      baseImage={currentCanvasImage}
+                      width={width}
+                      height={height}
+                      onCompositeComplete={handleCompositeComplete}
+                    />
+                  </div>
+                )}
+                
                  <div className="mt-4 flex items-center gap-2">
                     <Input 
                         placeholder="Prompt (optional - describe the expanded areas)" 
@@ -280,6 +502,15 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ originalImage, onReset }) => 
                         {isLoading ? <LoaderIcon className="animate-spin mr-2"/> : <WandIcon className="mr-2 h-4 w-4" />}
                         Generate
                     </Button>
+                    {currentCanvasImage && (
+                        <Button 
+                            onClick={() => setShowComposer(!showComposer)} 
+                            variant={showComposer ? "default" : "outline"}
+                            title="Layer multiple images"
+                        >
+                            <LayersIcon className="h-4 w-4" />
+                        </Button>
+                    )}
                  </div>
             </div>
         </div>

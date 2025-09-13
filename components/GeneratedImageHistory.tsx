@@ -3,6 +3,8 @@ import React from 'react';
 import { GeneratedImage } from '../types';
 import { Button } from './ui/Button';
 import { DownloadIcon, LoaderIcon, RefreshCwIcon, XIcon } from './ui/Icons';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 interface GeneratedImageHistoryProps {
   images: GeneratedImage[];
@@ -13,6 +15,8 @@ interface GeneratedImageHistoryProps {
 }
 
 const GeneratedImageHistory: React.FC<GeneratedImageHistoryProps> = ({ images, isVisible, onToggle, onRegenerate, isGenerating }) => {
+  const [isDownloadingAll, setIsDownloadingAll] = React.useState(false);
+
   const downloadImage = (src: string, name: string) => {
     const link = document.createElement('a');
     link.href = src;
@@ -22,9 +26,36 @@ const GeneratedImageHistory: React.FC<GeneratedImageHistoryProps> = ({ images, i
     document.body.removeChild(link);
   };
 
+  const downloadAllImages = async () => {
+    if (images.length === 0) return;
+    
+    setIsDownloadingAll(true);
+    try {
+      const zip = new JSZip();
+      
+      // Add each image to the zip
+      for (let i = 0; i < images.length; i++) {
+        const image = images[i];
+        // Extract base64 data from data URL
+        const base64Data = image.src.split(',')[1];
+        zip.file(`expanded-image-${i + 1}.png`, base64Data, { base64: true });
+      }
+      
+      // Generate the zip file
+      const content = await zip.generateAsync({ type: 'blob' });
+      
+      // Save the zip file
+      saveAs(content, `expanded-images-${new Date().getTime()}.zip`);
+    } catch (error) {
+      console.error('Error creating zip file:', error);
+    } finally {
+      setIsDownloadingAll(false);
+    }
+  };
+
   return (
     <div
-      className={`absolute right-0 top-0 bottom-0 bg-secondary/80 backdrop-blur-sm border-l border-border shadow-2xl transition-transform duration-300 ease-in-out z-30 ${
+      className={`fixed right-0 top-0 bottom-0 bg-secondary/95 backdrop-blur-sm border-l border-border shadow-2xl transition-transform duration-300 ease-in-out z-30 ${
         isVisible ? 'translate-x-0' : 'translate-x-full'
       }`}
       style={{ width: 'clamp(300px, 25vw, 400px)' }}
@@ -36,12 +67,35 @@ const GeneratedImageHistory: React.FC<GeneratedImageHistoryProps> = ({ images, i
         </div>
 
       <div className="flex flex-col h-full">
-        <div className="p-4 border-b border-border flex justify-between items-center">
-          <h3 className="font-semibold">History ({images.length})</h3>
-          <Button onClick={onRegenerate} disabled={isGenerating}>
-            {isGenerating ? <LoaderIcon className="animate-spin mr-2 h-4 w-4" /> : <RefreshCwIcon className="mr-2 h-4 w-4" />}
-            Regenerate
-          </Button>
+        <div className="p-4 border-b border-border">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="font-semibold">History ({images.length})</h3>
+            <Button onClick={onRegenerate} disabled={isGenerating} size="sm">
+              {isGenerating ? <LoaderIcon className="animate-spin mr-2 h-4 w-4" /> : <RefreshCwIcon className="mr-2 h-4 w-4" />}
+              Regenerate
+            </Button>
+          </div>
+          {images.length > 0 && (
+            <Button 
+              onClick={downloadAllImages} 
+              disabled={isDownloadingAll}
+              variant="outline"
+              size="sm"
+              className="w-full"
+            >
+              {isDownloadingAll ? (
+                <>
+                  <LoaderIcon className="animate-spin mr-2 h-4 w-4" />
+                  Creating zip...
+                </>
+              ) : (
+                <>
+                  <DownloadIcon className="mr-2 h-4 w-4" />
+                  Download All ({images.length} images)
+                </>
+              )}
+            </Button>
+          )}
         </div>
         
         {images.length === 0 ? (
